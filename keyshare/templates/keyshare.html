@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
+    <link href="/static/css/nocursor.css" rel="stylesheet">
+    <title>KeyShare Station</title>
+    <style>
+        iframe {
+            width: 500px;
+            height: 540px;
+            top: 20%;
+            left: 30%;
+            position: absolute;
+            z-index: 9999;
+            border-radius: 10px;
+            border-style: solid;
+            border-color: rgb(100, 100, 100);
+            border-width: 1.5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .noselect {
+            -ms-user-select: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        header {
+            background-color: #3498db;
+            color: white;
+            text-align: center;
+            padding: 20px 0;
+            font-size: 1.5vh;
+            z-index: 8888;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 30px;
+            justify-content: space-around;
+            margin-top: 20px;
+            z-index: 8888;
+            position: fixed;
+            width: 100vw;
+            margin-top: 15vh;
+            height: 100vh;
+        }
+
+        .big-button {
+            cursor:none;
+            width: 40%;
+            text-align: center;
+            height: 82.5vh;
+            padding: 20px 40px;
+            font-size: 18px;
+            background-color: rgba(51, 138, 195, 0.85);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 15vh;
+        }
+
+        .small-buttons {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 10vh;
+            width: 40%;
+            height: 80vh;
+        }
+
+        .small-button {
+            cursor:none;
+            width: 40vw;
+            height: 22.5vh;
+            padding: 15px 30px;
+            font-size: 5vh;
+            background-color: rgba(49, 184, 106, 0.85);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        canvas {
+            background: #232323;
+        }
+
+        .container {
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .reportclosebutton {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 26px;
+            font-weight: bold;
+            text-align: center;
+            text-decoration: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 25px;
+        }
+
+        .reportdiag {
+            border-style: solid;
+            border-radius: 10px;
+            z-index: 10000;
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 class="noselect">KeyShare Station</h1>
+    </header>
+    <canvas id="canvas" class="container"></canvas>
+    <div class="button-container noselect container" id="reportslot">
+        <button class="big-button noselect" id="borrowbutton">Borrow</button>
+        <div class="small-buttons noselect">
+            <button class="small-button noselect" id="reportbutton">Report / Suggest</button>
+            <button class="small-button noselect" id="cardbutton">Register Card</button>
+            <button class="small-button noselect" id="adminbutton">Admin Zone</button>
+        </div>
+    </div>
+    <div id="keypadslot"></div>
+    <script src="/static/js/star.js"></script>
+    <script src="/static/js/noright.js"></script>
+    <script src="/static/js/dmprocess.js"></script>
+</body>
+</html>
