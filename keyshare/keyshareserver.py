@@ -14,8 +14,6 @@ def read_file_to_string(file_path):
     return content
 
 def post_json_request(url, json_data=None):
-    session = requests.Session()
-    
     headers = {
         'Content-Type': 'application/json'
     }
@@ -29,10 +27,7 @@ def post_json_request(url, json_data=None):
     
     except requests.exceptions.RequestException as e:
         print(f"An error occurred: {e}")
-        return None
-    
-    finally:
-        session.close()
+        return 'error'
 
 unitsecret = read_file_to_string(unitsecretpath)
 
@@ -45,8 +40,9 @@ def keypadrender():
     return render_template('keypad.html')
 
 @app.route('/checkpin', methods=['POST'])
-def apiresponding():
+def checkpin():
     pin = request.json.get('pin')
+
     date = str(date.today())
     hashtext = date + unitsecret + pin
     verihash = hashlib.sha256(hashtext.encode('utf-8')).hexdigest()
@@ -54,9 +50,51 @@ def apiresponding():
         "hash": verihash,
         "pin": pin
     }
+
     response = post_json_request(pincheckurl, sendjson)
-    #Add response handle
-    return 0
+
+    if response == "error":
+        retinfo = {
+            "status": "trasmiterr"
+        }
+        print("Transmit error")
+        return jsonify(retinfo)
+    
+    response_status = response["status"]
+    retinfo = {}
+
+    if response_status == "ok":
+
+        retinfo["status"] = "ok"
+
+        username = response["username"]
+        userid = response["userid"]
+        retinfo["userid"] = userid
+        retinfo["user"] = username
+
+        return jsonify(retinfo)
+    
+    elif response_status == "hasherr":
+
+        print("Hash error")
+        retinfo["status"] = "hasherr"
+
+        return jsonify(retinfo)
+    
+    elif response_status == "err":
+
+        retinfo["status"] = "err"
+
+        errinfo = response["errinfo"]
+        retinfo["errinfo"] = errinfo
+
+        return jsonify(retinfo)
+    
+    else:
+
+        retinfo["status"] = "unknownerr"
+
+        return jsonify(retinfo)
 
 if __name__ == '__main__':
     app.run(host='localhost')
