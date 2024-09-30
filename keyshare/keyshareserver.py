@@ -1,5 +1,5 @@
 from flask import *
-from datetime import date
+import datetime
 import requests
 import hashlib
 
@@ -19,7 +19,7 @@ def post_json_request(url, json_data=None):
     }
     
     try:
-        response = session.post(url, headers=headers, json=json_data)
+        response = requests.post(url, headers=headers, json=json_data)
         
         response.raise_for_status()
         
@@ -43,7 +43,7 @@ def keypadrender():
 def checkpin():
     pin = request.json.get('pin')
 
-    date = str(date.today())
+    date = str(datetime.date.today())
     hashtext = date + unitsecret + pin
     verihash = hashlib.sha256(hashtext.encode('utf-8')).hexdigest()
     sendjson = {
@@ -55,7 +55,7 @@ def checkpin():
 
     if response == "error":
         retinfo = {
-            "status": "trasmiterr"
+            "status": "transmiterr"
         }
         print("Transmit error")
         return jsonify(retinfo)
@@ -71,15 +71,11 @@ def checkpin():
         userid = response["userid"]
         retinfo["userid"] = userid
         retinfo["user"] = username
-
-        return jsonify(retinfo)
     
     elif response_status == "hasherr":
 
         print("Hash error")
         retinfo["status"] = "hasherr"
-
-        return jsonify(retinfo)
     
     elif response_status == "err":
 
@@ -87,14 +83,12 @@ def checkpin():
 
         errinfo = response["errinfo"]
         retinfo["errinfo"] = errinfo
-
-        return jsonify(retinfo)
     
     else:
 
         retinfo["status"] = "unknownerr"
 
-        return jsonify(retinfo)
+    return jsonify(retinfo)
 
 if __name__ == '__main__':
     app.run(host='localhost')
