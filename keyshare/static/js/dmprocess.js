@@ -45,6 +45,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function checkAdminPin(pin) {
+        if (pin == "") {
+            return 0
+        }
+        renderLoader()
+        try {
+            const response = await fetch("/checkadminpin", {
+                method: 'POST',
+                body: JSON.stringify({
+                    pin: pin
+                }),
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const responseJson = await response.json();
+
+            switch (responseJson.status) {
+                case "transmiterr":
+                    renderDialog("Error", "An error occurred while trying to reach data server");
+                    break;
+                case "ok":
+                    renderDialog("OK", `admin auth ok`);
+                    break;
+                case "hasherr":
+                    renderDialog("Error", "An error occurred while trying to authenticate with the server");
+                    break;
+                case "err":
+                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    break;
+                case "unknownerr":
+                    renderDialog("Error", "An unknown error occurred");
+                    break;
+                default:
+                    renderDialog("Error", "Unit webserver encountered an error");
+            }
+            removeLoader()
+        } catch (error) {
+            console.error('Error:', error);
+            renderDialog("Error", "An error occurred while requesting for admin pin check");
+            removeLoader()
+        }
+        removeLoader()
+    }
+
     async function checkPin(pin) {
         if (pin == "") {
             return 0
@@ -67,7 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const responseJson = await response.json();
-
 
             switch (responseJson.status) {
                 case "transmiterr":
@@ -125,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
     adminbutton.addEventListener('click', function() {
         if (localStorage.getItem("buttonpressing") == 0) {
             localStorage.setItem("buttonpressing", 1)
-            renderKeypad("Enter Admin PIN", alert)
+            renderKeypad("Enter Admin PIN", checkAdminPin)
         }
     }, false)
 
