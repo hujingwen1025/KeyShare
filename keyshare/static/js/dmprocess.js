@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderDialog("Error", "An error occurred while trying to reach data server");
                     break;
                 case "ok":
-                    renderDialog("OK", `username: ${responseJson.user}| userid: ${responseJson.userid}`);
+                    renderDialog("OK", `username: ${responseJson.user}| userid: ${responseJson.userid}| borrowinfo: ${responseJson.borrowinfo}`);
                     break;
                 case "hasherr":
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
@@ -147,6 +147,60 @@ document.addEventListener('DOMContentLoaded', () => {
         removeLoader()
     }
 
+    async function checkCardBindingPin(pin) {
+        if (pin == "") {
+            return 0
+        }
+        renderLoader()
+        try {
+            const response = await fetch("/cardregister", {
+                method: 'POST',
+                body: JSON.stringify({
+                    "operation": "checkpin",
+                    pin: pin
+                }),
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const responseJson = await response.json();
+
+            switch (responseJson.status) {
+                case "transmiterr":
+                    renderDialog("Error", "An error occurred while trying to reach data server");
+                    break;
+                case "ok":
+                    renderDialog("OK", "OK to bind");
+                    break;
+                case "hasherr":
+                    renderDialog("Error", "An error occurred while trying to authenticate with the server");
+                    break;
+                case "err":
+                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    break;
+                case "unknownerr":
+                    renderDialog("Error", "An unknown error occurred");
+                    break;
+                case "operror":
+                    renderDialog("Error", "Operation choice error")
+                    break;
+                default:
+                    renderDialog("Error", "Unit webserver encountered an error");
+            }
+            removeLoader()
+        } catch (error) {
+            console.error('Error:', error);
+            renderDialog("Error", "An error occurred while requesting for pin check");
+            removeLoader()
+        }
+        removeLoader()
+    }
 
     const diagslot = document.getElementById("diagslot");
     var reportbutton = document.getElementById("reportbutton");
@@ -183,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cardbutton.addEventListener('click', function() {
         if (localStorage.getItem("buttonpressing") == 0) {
             localStorage.setItem("buttonpressing", 1)
-            renderKeypad("Enter Card Bind Code", alert)
+            renderKeypad("Enter Card Bind Code", checkCardBindingPin)
         }
     }, false)
 });
