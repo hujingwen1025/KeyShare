@@ -4,19 +4,32 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem("loaderpresent", 0)
 
     function renderKeypad(inputlabel, callfunction) {
-        const keypadslot = document.getElementById("keypadslot");
-        const iframecode = `<iframe src="./keypad.html?inputlabel=${inputlabel}" id="keypadiframe"></iframe>`;
-        keypadslot.insertAdjacentHTML("afterbegin", iframecode);
+        const interactslot = document.getElementById("interactslot");
+        const iframecode = `<iframe src="./keypad?inputlabel=${inputlabel}" id="keypadiframe"></iframe>`;
+        interactslot.insertAdjacentHTML("afterbegin", iframecode);
         const keypadiframe = document.getElementById('keypadiframe');
         window.onmessage = function(event) {
             if (event.data.startsWith("doneinput")) {
-                document.getElementById("keypadiframe").remove();
+                keypadiframe.remove();
                 callfunction(event.data.replace('doneinput', ''));
                 localStorage.setItem("buttonpressing", 0)
             }
         }
     }
 
+    function renderBorrowChoice(username, borrowInfo, callfunction) {
+        const interactslot = document.getElementById("interactslot");
+        const iframecode = `<iframe src="./borrowchoice?buttonjson=${borrowInfo}&username=${username}" id="borrowchoiceiframe"></iframe>`;
+        interactslot.insertAdjacentHTML("afterbegin", iframecode);
+        const borrowchoiceiframe = document.getElementById('borrowchoiceiframe');
+        window.onmessage = function(event) {
+            if (event.data.startsWith("doneselect")) {
+                borrowchoiceiframe.remove();
+                callfunction(event.data.replace('doneselect', ''));
+                localStorage.setItem("buttonpressing", 0)
+            }
+        }
+    }
 
     function renderDialog(title, body) {
         const diagslot = document.getElementById("diagslot");
@@ -124,7 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderDialog("Error", "An error occurred while trying to reach data server");
                     break;
                 case "ok":
-                    renderDialog("OK", `username: ${responseJson.user}| userid: ${responseJson.userid}| borrowinfo: ${responseJson.borrowinfo}`);
+                    var usern = responseJson.user;
+                    var borrowinf = responseJson.borrowinfo;
+                    renderBorrowChoice(usern, borrowinfm, alert)
                     break;
                 case "hasherr":
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");

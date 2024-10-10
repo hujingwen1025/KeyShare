@@ -42,64 +42,123 @@ unitsecret = read_file_to_string(unitsecretpath)
 def noresponse():
     return render_template('keyshare.html')
 
-@app.route('/keypad.html')
+@app.route('/keypad')
 def keypadrender():
     return render_template('keypad.html')
 
-@app.route('/checkpin', methods=['POST'])
-def checkpin():
-    pin = request.json.get('pin')
+@app.route('/authid', methods=['POST'])
+def authid():
+    authmethod = request.json.get('authmethod')
 
-    sendjson = {
-        "pin": pin
-    }
+    if authmethod == "pin":
 
-    date = str(datetime.date.today())
-    hashtext = date + unitsecret + str(sendjson)
-    verihash = hashlib.sha256(hashtext.encode('utf-8')).hexdigest()
+        pin = request.json.get('pin')
 
-    sendjson["hash"] = verihash
-
-    response = post_json_request(pincheckurl, sendjson)
-
-    if response == "error":
-        retinfo = {
-            "status": "transmiterr"
+        sendjson = {
+            "pin": pin
         }
-        print("Transmit error")
+
+        date = str(datetime.date.today())
+        hashtext = date + unitsecret + str(sendjson)
+        verihash = hashlib.sha256(hashtext.encode('utf-8')).hexdigest()
+
+        sendjson["hash"] = verihash
+
+        response = post_json_request(pincheckurl, sendjson)
+
+        if response == "error":
+            retinfo = {
+                "status": "transmiterr"
+            }
+            print("Transmit error")
+            return jsonify(retinfo)
+
+        response_status = response["status"]
+        retinfo = {}
+
+        if response_status == "ok":
+
+            retinfo["status"] = "ok"
+
+            username = response["username"]
+            userid = response["userid"]
+            borrowinfo = response["borrowinfo"]
+            retinfo["userid"] = userid
+            retinfo["user"] = username
+            retinfo["borrowinfo"] = borrowinfo
+
+        elif response_status == "hasherr":
+
+            print("Hash error")
+            retinfo["status"] = "hasherr"
+
+        elif response_status == "err":
+
+            retinfo["status"] = "err"
+
+            errinfo = response["errinfo"]
+            retinfo["errinfo"] = errinfo
+
+        else:
+
+            retinfo["status"] = "unknownerr"
+
         return jsonify(retinfo)
-    
-    response_status = response["status"]
-    retinfo = {}
 
-    if response_status == "ok":
+    elif authmethod == "card":
 
-        retinfo["status"] = "ok"
+        cardid = request.json.get('cardid')
 
-        username = response["username"]
-        userid = response["userid"]
-        borrowinfo = response["borrowinfo"]
-        retinfo["userid"] = userid
-        retinfo["user"] = username
-        retinfo["borrowinfo"] = borrowinfo
-    
-    elif response_status == "hasherr":
+        sendjson = {
+            "cardid": cardid
+        }
 
-        print("Hash error")
-        retinfo["status"] = "hasherr"
-    
-    elif response_status == "err":
+        date = str(datetime.date.today())
+        hashtext = date + unitsecret + str(sendjson)
+        verihash = hashlib.sha256(hashtext.encode('utf-8')).hexdigest()
 
-        retinfo["status"] = "err"
+        sendjson["hash"] = verihash
 
-        errinfo = response["errinfo"]
-        retinfo["errinfo"] = errinfo
-    
-    else:
+        response = post_json_request(pincheckurl, sendjson)
 
-        retinfo["status"] = "unknownerr"
+        if response == "error":
+            retinfo = {
+                "status": "transmiterr"
+            }
+            print("Transmit error")
+            return jsonify(retinfo)
 
-    return jsonify(retinfo)
+        response_status = response["status"]
+        retinfo = {}
+
+        if response_status == "ok":
+
+            retinfo["status"] = "ok"
+
+            username = response["username"]
+            userid = response["userid"]
+            borrowinfo = response["borrowinfo"]
+            retinfo["userid"] = userid
+            retinfo["user"] = username
+            retinfo["borrowinfo"] = borrowinfo
+
+        elif response_status == "hasherr":
+
+            print("Hash error")
+            retinfo["status"] = "hasherr"
+
+        elif response_status == "err":
+
+            retinfo["status"] = "err"
+
+            errinfo = response["errinfo"]
+            retinfo["errinfo"] = errinfo
+
+        else:
+
+            retinfo["status"] = "unknownerr"
+
+        return jsonify(retinfo)
 
 @app.route('/checkadminpin', methods=['POST'])
 def checkadminpin():
@@ -152,7 +211,7 @@ def cardregister():
     operation = request.json.get("operation")
 
     sendjson = {
-        "action": operation
+        "operation": operation
     }
 
     if operation == "checkpin":
@@ -203,11 +262,11 @@ def cardregister():
         return jsonify(retinfo)
 
     elif operation == "registercard":
-        carduuid = request.json.get('uuid')
+        cardid = request.json.get('cardid')
 
-        sendjson["uuid"] = registerpin
+        sendjson["cardid"] = registerpin
 
-        sendjson["userid"] = carduuid
+        sendjson["userid"] = cardid
 
         verihash = generatehash(sendjson)
 
@@ -253,6 +312,127 @@ def cardregister():
         retinfo["status"] = "operror"
 
         return jsonify(retinfo)
+    
+@app.route('/updateitemstatus', methods=['POST'])
+def updateitemstatus():
+    operation = request.json.get("operation")
+
+    sendjson = {
+        "operation": operation
+    }
+
+    if operation == "borrow":
+        itemtype = request.json.get('itemtype')
+
+        userid = request.json.get('userid')
+
+        sendjson["itemtype"] = itemtype
+
+        sendjson["userid"] = userid
+
+        verihash = generatehash(sendjson)
+
+        sendjson["hash"] = verihash
+
+        response = post_json_request(pincheckurl, sendjson)
+
+        if response == "error":
+            retinfo = {
+                "status": "transmiterr"
+            }
+            print("Transmit error")
+            return jsonify(retinfo)
+        
+        response_status = response["status"]
+        retinfo = {}
+
+        if response_status == "ok":
+
+            retinfo["status"] = "ok"
+            retinfo["storageid"] = response["storageid"]
+
+        elif response_status == "hasherr":
+
+            print("Hash error")
+            retinfo["status"] = "hasherr"
+
+        elif response_status == "err":
+
+            retinfo["status"] = "err"
+
+            errinfo = response["errinfo"]
+            retinfo["errinfo"] = errinfo
+
+        else:
+
+            retinfo["status"] = "unknownerr"
+
+        return jsonify(retinfo)
+
+    elif operation == "returnverify":
+        itemid = request.json.get('itemid')
+
+        sendjson["itemid"] = itemid
+
+        verihash = generatehash(sendjson)
+
+        sendjson["hash"] = verihash
+
+        response = post_json_request(pincheckurl, sendjson)
+
+        if response == "error":
+            retinfo = {
+                "status": "transmiterr"
+            }
+            print("Transmit error")
+            return jsonify(retinfo)
+        
+        response_status = response["status"]
+        retinfo = {}
+
+        if response_status == "ok":
+
+            retinfo["status"] = "ok"
+
+        elif response_status == "hasherr":
+
+            print("Hash error")
+            retinfo["status"] = "hasherr"
+
+        elif response_status == "err":
+
+            retinfo["status"] = "err"
+
+            errinfo = response["errinfo"]
+            retinfo["errinfo"] = errinfo
+
+        else:
+
+            retinfo["status"] = "unknownerr"
+
+        return jsonify(retinfo)
+    
+    elif operation == "return":
+        itemid = request.json.get('itemid')
+
+        sendjson["itemid"] = itemid
+
+        verihash = generatehash(sendjson)
+
+        sendjson["hash"] = verihash
+
+        response = post_json_request(pincheckurl, sendjson)
+
+    else:
+        retinfo = {}
+
+        retinfo["status"] = "operror"
+
+        return jsonify(retinfo)
+
+@app.route('/borrowchoice')
+def borrowchoice():
+    return render_template('borrowchoice.html')
 
 if __name__ == '__main__':
     app.run(host='localhost')

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="/static/css/nocursor.css" rel="stylesheet">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Borrow Choice</title>
+        <style>
+            body {
+                background-color: white;
+            }
+            
+            .buttonContainer {
+                max-width: 90%;
+            }
+
+            h1 {
+                font-family: Arial;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            }
+
+            button {
+                display: inline-block;
+                padding: 10px 20px;
+                text-decoration: none;
+                font-weight: bold;
+                font-size: 50px;
+                transition: background-color 0.3s ease;
+                border: 2px solid #333;
+                border-radius: 20px;
+                background-color: #f0f0f0;
+                color: #333;
+                font-weight: bold;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+                margin: 5px;
+                min-width: 75%;
+              }
+              
+              button:hover {
+                background-color: #333;
+                color: #f0f0f0;
+              }
+        </style>
+    </head>
+    <body>
+        <center>
+            <h1><i>Welcome, <a id="usernameslot"></a></i>!</h1>
+            <h1><b><u><i>Select An Item To Borrow</i></u></b></h1>
+            <div id="buttonContainer" class="buttonContainer"></div>
+        </center>
+        <script src="/static/js/borrowchoice.js"></script>
+    </body>
+</html>
