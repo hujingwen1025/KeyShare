@@ -2,11 +2,14 @@ from flask import *
 import datetime
 import requests
 import hashlib
+import threading
+import openpyxl
 
 app = Flask(__name__)
 
 pincheckurl = "https://example.org"
 unitsecretpath = "./unitsecret.txt"
+eotablepath = "./eo.xlsx"
 
 def read_file_to_string(file_path):
     with open(file_path, 'r') as file:
@@ -36,18 +39,76 @@ def generatehash(json):
 
     return verihash
 
+def nfcInput():
+    global nfccontent
+
+    import tkinter as tk
+
+    def clear_textbox():
+        content = text_area.get('1.0', tk.END)
+        content = content.replace('\n', '')
+        nfccontent = content
+        text_area.delete('1.0', tk.END)
+
+    root = tk.Tk()
+    root.title("KEYSHARE NFC INPUT")
+    root.geometry("250x50")
+
+    text_area = tk.Text(root, height=10, width=40)
+    text_area.pack(padx=10, pady=10)
+
+    def on_enter_press(event):
+        clear_textbox()
+
+    text_area.bind("<Return>", on_enter_press)
+
+    root.mainloop()
+
+def searchEO():
+    for i in range(eoindex):
+        if eocell(row = (i+1), column = 3) == 'e':
+            return eocell(row = (i+1), column=1)
+    return None
+
+def registerreturn(returnslot, itemid):
+    sendjson = {
+        "storageid": returnslot,
+        "itemid": itemid
+    }
+
+    verihash = generatehash(sendjson)
+
+    sendjson["hash"] = verihash
+
+    response = post_json_request(pincheckurl, sendjson)
+
+    response_status = response["status"]
+
+    if response_status == "ok":
+        return True
+    else:
+        return False
+    
+def openslot(storageid):
+    pass
+
 unitsecret = read_file_to_string(unitsecretpath)
 
+eoworkbook = openpyxl.load_workbook(eotablepath)
+eosheet = eoworkbook.active
+eocell = eosheet.cell
+eoindex = eocell(row=1, column=1)
+
 @app.route('/')
-def noresponse():
+def keyshare():
     return render_template('keyshare.html')
 
 @app.route('/keypad')
 def keypadrender():
     return render_template('keypad.html')
 
-@app.route('/authid', methods=['POST'])
-def authid():
+@app.route('/auth', methods=['POST'])
+def auth():
     authmethod = request.json.get('authmethod')
 
     if authmethod == "pin":
@@ -423,6 +484,49 @@ def updateitemstatus():
 
         response = post_json_request(pincheckurl, sendjson)
 
+        if response == "error":
+            retinfo = {
+                "status": "transmiterr"
+            }
+            print("Transmit error")
+            return jsonify(retinfo)
+        
+        response_status = response["status"]
+        retinfo = {}
+
+        if response_status == "ok":
+
+            retinfo["status"] = "ok"
+
+            returnslot = searchEO()
+
+            if returnslot == None:
+                retinfo["status"] = "full"
+            else:
+                returned = registerreturn(returnslot)
+                if returned:
+                    openslot(returnslot)
+                else:
+                    retinfo["status"] = "notapproved"
+
+        elif response_status == "hasherr":
+
+            print("Hash error")
+            retinfo["status"] = "hasherr"
+
+        elif response_status == "err":
+
+            retinfo["status"] = "err"
+
+            errinfo = response["errinfo"]
+            retinfo["errinfo"] = errinfo
+
+        else:
+
+            retinfo["status"] = "unknownerr"
+
+        return jsonify(retinfo)
+
     else:
         retinfo = {}
 
@@ -435,4 +539,7 @@ def borrowchoice():
     return render_template('borrowchoice.html')
 
 if __name__ == '__main__':
-    app.run(host='localhost')
+    appThread = threading.Thread(target=app.run, args=('localhost',))
+
+    appThread.start()
+    nfcInput()

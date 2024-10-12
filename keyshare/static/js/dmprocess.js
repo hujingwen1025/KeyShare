@@ -115,9 +115,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         renderLoader()
         try {
-            const response = await fetch("/checkpin", {
+            const response = await fetch("/auth", {
                 method: 'POST',
                 body: JSON.stringify({
+                    "authmethod": "pin",
                     pin: pin
                 }),
                 headers: {
