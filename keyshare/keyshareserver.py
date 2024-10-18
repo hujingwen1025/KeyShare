@@ -1,15 +1,25 @@
 from flask import *
+import tkinter as tk
+from flask_socketio import SocketIO, emit
 import datetime
 import requests
 import hashlib
 import threading
 import openpyxl
+import time
 
 app = Flask(__name__)
+
+socketio = SocketIO(app)
 
 pincheckurl = "https://example.org"
 unitsecretpath = "./unitsecret.txt"
 eotablepath = "./eo.xlsx"
+debug = True
+
+def dprint(text):
+    if debug:
+        print(text)
 
 def read_file_to_string(file_path):
     with open(file_path, 'r') as file:
@@ -29,7 +39,7 @@ def post_json_request(url, json_data=None):
         return response.json()
     
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
+        dprint(f"An error occurred: {e}")
         return 'error'
     
 def generatehash(json):
@@ -40,14 +50,12 @@ def generatehash(json):
     return verihash
 
 def nfcInput():
-    global nfccontent
-
-    import tkinter as tk
-
     def clear_textbox():
         content = text_area.get('1.0', tk.END)
         content = content.replace('\n', '')
         nfccontent = content
+        dprint('nfccontent is now: ' + nfccontent)
+        socketio.emit('contentupdate', nfccontent)
         text_area.delete('1.0', tk.END)
 
     root = tk.Tk()
@@ -70,10 +78,11 @@ def searchEO():
             return eocell(row = (i+1), column=1)
     return None
 
-def registerreturn(returnslot, itemid):
+def registerreturn(returnslot, itemid, disabled):
     sendjson = {
         "storageid": returnslot,
-        "itemid": itemid
+        "itemid": itemid,
+        "disabled": disabled
     }
 
     verihash = generatehash(sendjson)
@@ -91,6 +100,9 @@ def registerreturn(returnslot, itemid):
     
 def openslot(storageid):
     pass
+
+def runMainApp():
+    socketio.run(app, port=5000)
 
 unitsecret = read_file_to_string(unitsecretpath)
 
@@ -131,7 +143,7 @@ def auth():
             retinfo = {
                 "status": "transmiterr"
             }
-            print("Transmit error")
+            dprint("Transmit error")
             return jsonify(retinfo)
 
         response_status = response["status"]
@@ -150,7 +162,7 @@ def auth():
 
         elif response_status == "hasherr":
 
-            print("Hash error")
+            dprint("Hash error")
             retinfo["status"] = "hasherr"
 
         elif response_status == "err":
@@ -186,7 +198,7 @@ def auth():
             retinfo = {
                 "status": "transmiterr"
             }
-            print("Transmit error")
+            dprint("Transmit error")
             return jsonify(retinfo)
 
         response_status = response["status"]
@@ -205,7 +217,7 @@ def auth():
 
         elif response_status == "hasherr":
 
-            print("Hash error")
+            dprint("Hash error")
             retinfo["status"] = "hasherr"
 
         elif response_status == "err":
@@ -239,7 +251,7 @@ def checkadminpin():
         retinfo = {
             "status": "transmiterr"
         }
-        print("Transmit error")
+        dprint("Transmit error")
         return jsonify(retinfo)
     
     response_status = response["status"]
@@ -251,7 +263,7 @@ def checkadminpin():
     
     elif response_status == "hasherr":
 
-        print("Hash error")
+        dprint("Hash error")
         retinfo["status"] = "hasherr"
     
     elif response_status == "err":
@@ -290,7 +302,7 @@ def cardregister():
             retinfo = {
                 "status": "transmiterr"
             }
-            print("Transmit error")
+            dprint("Transmit error")
             return jsonify(retinfo)
         
         response_status = response["status"]
@@ -306,7 +318,7 @@ def cardregister():
 
         elif response_status == "hasherr":
 
-            print("Hash error")
+            dprint("Hash error")
             retinfo["status"] = "hasherr"
 
         elif response_status == "err":
@@ -339,7 +351,7 @@ def cardregister():
             retinfo = {
                 "status": "transmiterr"
             }
-            print("Transmit error")
+            dprint("Transmit error")
             return jsonify(retinfo)
         
         response_status = response["status"]
@@ -351,7 +363,7 @@ def cardregister():
 
         elif response_status == "hasherr":
 
-            print("Hash error")
+            dprint("Hash error")
             retinfo["status"] = "hasherr"
 
         elif response_status == "err":
@@ -401,7 +413,7 @@ def updateitemstatus():
             retinfo = {
                 "status": "transmiterr"
             }
-            print("Transmit error")
+            dprint("Transmit error")
             return jsonify(retinfo)
         
         response_status = response["status"]
@@ -414,7 +426,7 @@ def updateitemstatus():
 
         elif response_status == "hasherr":
 
-            print("Hash error")
+            dprint("Hash error")
             retinfo["status"] = "hasherr"
 
         elif response_status == "err":
@@ -445,7 +457,7 @@ def updateitemstatus():
             retinfo = {
                 "status": "transmiterr"
             }
-            print("Transmit error")
+            dprint("Transmit error")
             return jsonify(retinfo)
         
         response_status = response["status"]
@@ -457,7 +469,7 @@ def updateitemstatus():
 
         elif response_status == "hasherr":
 
-            print("Hash error")
+            dprint("Hash error")
             retinfo["status"] = "hasherr"
 
         elif response_status == "err":
@@ -488,7 +500,7 @@ def updateitemstatus():
             retinfo = {
                 "status": "transmiterr"
             }
-            print("Transmit error")
+            dprint("Transmit error")
             return jsonify(retinfo)
         
         response_status = response["status"]
@@ -503,7 +515,7 @@ def updateitemstatus():
             if returnslot == None:
                 retinfo["status"] = "full"
             else:
-                returned = registerreturn(returnslot)
+                returned = registerreturn(returnslot, itemid, "false")
                 if returned:
                     openslot(returnslot)
                 else:
@@ -511,7 +523,61 @@ def updateitemstatus():
 
         elif response_status == "hasherr":
 
-            print("Hash error")
+            dprint("Hash error")
+            retinfo["status"] = "hasherr"
+
+        elif response_status == "err":
+
+            retinfo["status"] = "err"
+
+            errinfo = response["errinfo"]
+            retinfo["errinfo"] = errinfo
+
+        else:
+
+            retinfo["status"] = "unknownerr"
+
+        return jsonify(retinfo)
+
+    elif operation == "report":
+        itemid = request.json.get('itemid')
+
+        sendjson["itemid"] = itemid
+
+        verihash = generatehash(sendjson)
+
+        sendjson["hash"] = verihash
+
+        response = post_json_request(pincheckurl, sendjson)
+
+        if response == "error":
+            retinfo = {
+                "status": "transmiterr"
+            }
+            dprint("Transmit error")
+            return jsonify(retinfo)
+        
+        response_status = response["status"]
+        retinfo = {}
+
+        if response_status == "ok":
+
+            retinfo["status"] = "ok"
+
+            returnslot = searchEO()
+
+            if returnslot == None:
+                retinfo["status"] = "full"
+            else:
+                returned = registerreturn(returnslot, itemid, 'true')
+                if returned:
+                    openslot(returnslot)
+                else:
+                    retinfo["status"] = "notapproved"
+
+        elif response_status == "hasherr":
+
+            dprint("Hash error")
             retinfo["status"] = "hasherr"
 
         elif response_status == "err":
@@ -533,13 +599,63 @@ def updateitemstatus():
         retinfo["status"] = "operror"
 
         return jsonify(retinfo)
+    
+@app.route('/checkitem', methods=['POST'])
+def checkItem():
+    itemid = request.json.get('itemid')
+
+    sendjson = {
+        "itemid": itemid
+    }
+
+    verihash = generatehash(sendjson)
+
+    sendjson["hash"] = verihash
+
+    response = post_json_request(pincheckurl, sendjson)
+
+    if response == "error":
+        retinfo = {
+            "status": "transmiterr"
+        }
+        dprint("Transmit error")
+        return jsonify(retinfo)
+    
+    response_status = response["status"]
+    retinfo = {}
+
+    if response_status == "ok":
+
+        retinfo["status"] = "ok"
+    
+    elif response_status == "hasherr":
+
+        dprint("Hash error")
+        retinfo["status"] = "hasherr"
+    
+    elif response_status == "err":
+
+        retinfo["status"] = "err"
+
+        errinfo = response["errinfo"]
+        retinfo["errinfo"] = errinfo
+    
+    else:
+
+        retinfo["status"] = "unknownerr"
+
+    return jsonify(retinfo) 
 
 @app.route('/borrowchoice')
 def borrowchoice():
     return render_template('borrowchoice.html')
 
+@socketio.on('connect')
+def socketconnect():
+    emit('connection', {'data': 'ok'})
+
 if __name__ == '__main__':
-    appThread = threading.Thread(target=app.run, args=('localhost',))
+    appThread = threading.Thread(target=runMainApp)
 
     appThread.start()
     nfcInput()

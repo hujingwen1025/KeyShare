@@ -3,6 +3,9 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem("buttonpressing", 0)
     localStorage.setItem("loaderpresent", 0)
 
+    var cardBindNFC = false;
+    var newCardNFC = "";
+
     function renderKeypad(inputlabel, callfunction) {
         const interactslot = document.getElementById("interactslot");
         const iframecode = `<iframe src="./keypad?inputlabel=${inputlabel}" id="keypadiframe"></iframe>`;
@@ -14,6 +17,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 callfunction(event.data.replace('doneinput', ''));
                 localStorage.setItem("buttonpressing", 0)
             }
+        }
+    }
+
+    function closeDiag(){
+        try {
+            var diagclosebutton = document.getElementById("diagclosebutton");
+            diagclosebutton.click();
+        } catch (error) {
+            console.log('nodiag');
         }
     }
 
@@ -67,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch("/checkadminpin", {
                 method: 'POST',
                 body: JSON.stringify({
-                    pin: pin
+                    "pin": pin
                 }),
                 headers: {
                     Accept: 'application/json',
@@ -119,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 body: JSON.stringify({
                     "authmethod": "pin",
-                    pin: pin
+                    "pin": pin
                 }),
                 headers: {
                     Accept: 'application/json',
@@ -140,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 case "ok":
                     var usern = responseJson.user;
                     var borrowinf = responseJson.borrowinfo;
-                    renderBorrowChoice(usern, borrowinfm, alert)
+                    renderBorrowChoice(usern, borrowinf, alert)
                     break;
                 case "hasherr":
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
@@ -163,17 +175,17 @@ document.addEventListener('DOMContentLoaded', () => {
         removeLoader()
     }
 
-    async function checkCardBindingPin(pin) {
-        if (pin == "") {
+    async function checkCard(cardid) {
+        if (cardid == "") {
             return 0
         }
         renderLoader()
         try {
-            const response = await fetch("/cardregister", {
+            const response = await fetch("/auth", {
                 method: 'POST',
                 body: JSON.stringify({
-                    "operation": "checkpin",
-                    pin: pin
+                    "authmethod": "card",
+                    "cardid": cardid
                 }),
                 headers: {
                     Accept: 'application/json',
@@ -192,7 +204,120 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderDialog("Error", "An error occurred while trying to reach data server");
                     break;
                 case "ok":
-                    renderDialog("OK", "OK to bind");
+                    var usern = responseJson.user;
+                    var borrowinf = responseJson.borrowinfo;
+                    renderBorrowChoice(usern, borrowinf, alert)
+                    break;
+                case "hasherr":
+                    renderDialog("Error", "An error occurred while trying to authenticate with the server");
+                    break;
+                case "err":
+                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    break;
+                case "unknownerr":
+                    renderDialog("Error", "An unknown error occurred");
+                    break;
+                default:
+                    renderDialog("Error", "Unit webserver encountered an error");
+            }
+            removeLoader()
+        } catch (error) {
+            console.error('Error:', error);
+            renderDialog("Error", "An error occurred while requesting for pin check");
+            removeLoader()
+        }
+        removeLoader()
+    }
+
+    async function bindCard(cardid) {
+        if (cardid == "") {
+            return 0
+        }
+        renderLoader()
+        try {
+            const response = await fetch("/cardregister", {
+                method: 'POST',
+                body: JSON.stringify({
+                    "operation": "checkpin",
+                    "cardid": cardid
+                }),
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const responseJson = await response.json();
+
+            switch (responseJson.status) {
+                case "transmiterr":
+                    renderDialog("Error", "An error occurred while trying to reach data server");
+                    break;
+                case "ok":
+                    renderDialog("Success", "Card has been binded to your account");
+                    break;
+                case "hasherr":
+                    renderDialog("Error", "An error occurred while trying to authenticate with the server");
+                    break;
+                case "err":
+                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    break;
+                case "unknownerr":
+                    renderDialog("Error", "An unknown error occurred");
+                    break;
+                case "operror":
+                    renderDialog("Error", "Operation choice error")
+                    break;
+                default:
+                    renderDialog("Error", "Unit webserver encountered an error");
+            }
+            removeLoader()
+        } catch (error) {
+            console.error('Error:', error);
+            renderDialog("Error", "An error occurred while requesting for item check");
+            removeLoader()
+        }
+        removeLoader()
+    }
+
+    async function checkCardBindingPin(pin) {
+        if (pin == "") {
+            return 0
+        }
+        renderLoader()
+        try {
+            const response = await fetch("/cardregister", {
+                method: 'POST',
+                body: JSON.stringify({
+                    "operation": "checkpin",
+                    "pin": pin
+                }),
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const responseJson = await response.json();
+
+            switch (responseJson.status) {
+                case "transmiterr":
+                    renderDialog("Error", "An error occurred while trying to reach data server");
+                    break;
+                case "ok":
+                    renderDialog(`Welcome ${responseJson.username}`, "Please tap card to bind...");
+                    var diagclosebutton = document.getElementById("diagclosebutton");
+                    diagclosebutton.addEventListener('click', function() {
+                        bindCard(newCardNFC);
+                    });
                     break;
                 case "hasherr":
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
@@ -217,6 +342,84 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         removeLoader()
     }
+
+    async function checkItem(itemid) {
+        if (itemid == "") {
+            return 0
+        }
+        renderLoader()
+        try {
+            const response = await fetch("/checkitem", {
+                method: 'POST',
+                body: JSON.stringify({
+                    "itemid": itemid
+                }),
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const responseJson = await response.json();
+
+            switch (responseJson.status) {
+                case "transmiterr":
+                    renderDialog("Error", "An error occurred while trying to reach data server");
+                    break;
+                case "ok":
+                    renderDialog("OK", "Item valid");
+                    break;
+                case "hasherr":
+                    renderDialog("Error", "An error occurred while trying to authenticate with the server");
+                    break;
+                case "err":
+                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    break;
+                case "unknownerr":
+                    renderDialog("Error", "An unknown error occurred");
+                    break;
+                case "operror":
+                    renderDialog("Error", "Operation choice error")
+                    break;
+                default:
+                    renderDialog("Error", "Unit webserver encountered an error");
+            }
+            removeLoader()
+        } catch (error) {
+            console.error('Error:', error);
+            renderDialog("Error", "An error occurred while requesting for item check");
+            removeLoader()
+        }
+        removeLoader()
+    }
+
+
+    function handleNfcInput(nfcInput) {
+        if (nfcInput.startsWith('03')) {
+            checkItem(nfcInput)
+        } else {
+            if (cardBindNFC) {
+                newCardNFC = nfcInput;
+                closeDiag()
+            } else {
+                checkCard(nfcInput)
+            }
+        }
+    }
+
+    const nfcInputSocket = new io();
+
+    nfcInputSocket.onopen = function(e) {
+        console.log("Socket Opened");
+    };
+
+    nfcInputSocket.on('contentupdate', function(msg) {
+        handleNfcInput(msg);
+    });
 
     const diagslot = document.getElementById("diagslot");
     var reportbutton = document.getElementById("reportbutton");
