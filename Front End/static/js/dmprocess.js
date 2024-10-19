@@ -29,14 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderBorrowChoice(username, borrowInfo, callfunction) {
+    function renderChoiceDialog(username, buttonJson, subtext, callfunction) {
         const interactslot = document.getElementById("interactslot");
-        const iframecode = `<iframe src="./borrowchoice?buttonjson=${borrowInfo}&username=${username}" id="borrowchoiceiframe"></iframe>`;
+        const iframecode = `<iframe src="./borrowchoice?subtext=${subtext}&buttonjson=${borrowInfo}&username=${username}" id="choicedialogiframe"></iframe>`;
         interactslot.insertAdjacentHTML("afterbegin", iframecode);
-        const borrowchoiceiframe = document.getElementById('borrowchoiceiframe');
+        const choicedialogiframe = document.getElementById('choicedialogiframe');
         window.onmessage = function(event) {
             if (event.data.startsWith("doneselect")) {
-                borrowchoiceiframe.remove();
+                choicedialogiframe.remove();
                 callfunction(event.data.replace('doneselect', ''));
                 localStorage.setItem("buttonpressing", 0)
             }
@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 case "ok":
                     var usern = responseJson.user;
                     var borrowinf = responseJson.borrowinfo;
-                    renderBorrowChoice(usern, borrowinf, alert)
+                    renderChoiceDialog(usern, borrowinf, "Select an item to borrow", alert)
                     break;
                 case "hasherr":
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 case "ok":
                     var usern = responseJson.user;
                     var borrowinf = responseJson.borrowinfo;
-                    renderBorrowChoice(usern, borrowinf, alert)
+                    choicedialogiframe(usern, borrowinf, "Select an item to borrow", alert)
                     break;
                 case "hasherr":
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");

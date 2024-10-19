@@ -43,8 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const textValue = getParameterByName('buttonjson').replaceAll("'", '"');
 
     const username = getParameterByName('username');
+    const subtext = getParameterByName('subtext')
 
     document.getElementById('usernameslot').textContent = username;
+    document.getElementById('textslot').textContent = subtext;
 
     const jsonData = parseJSON(textValue);
 
