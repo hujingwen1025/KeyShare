@@ -40,7 +40,9 @@ function createButtons(jsonData) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const textValue = getParameterByName('buttonjson').replaceAll("'", '"');
+    const textValue = getParameterByName('buttonjson').replaceAll("%27", '"').replaceAll("%22", '"').replaceAll("%20", ' ').replaceAll("'", '"');
+
+    console.log(textValue);
 
     const username = getParameterByName('username');
     const subtext = getParameterByName('subtext')
@@ -49,6 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('textslot').textContent = subtext;
 
     const jsonData = parseJSON(textValue);
+
+    const closebutton = document.getElementById('closebutton');
+
+    closebutton.addEventListener('click', () => {
+        parent.postMessage("doneselectclose", '*')
+    });
 
     if (Object.keys(jsonData).length > 0) {
         createButtons(jsonData);

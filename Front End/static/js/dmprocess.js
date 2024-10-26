@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderChoiceDialog(username, buttonJson, subtext, callfunction) {
+    function renderChoiceDialog(username, borrowInfo, userid, subtext, callfunction) {
         const interactslot = document.getElementById("interactslot");
         const iframecode = `<iframe src="./borrowchoice?subtext=${subtext}&buttonjson=${borrowInfo}&username=${username}" id="choicedialogiframe"></iframe>`;
         interactslot.insertAdjacentHTML("afterbegin", iframecode);
@@ -37,7 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.onmessage = function(event) {
             if (event.data.startsWith("doneselect")) {
                 choicedialogiframe.remove();
-                callfunction(event.data.replace('doneselect', ''));
+                if (event.data.replace('doneselect', '') != 'close') {
+                    callfunction(event.data.replace('doneselect', ''), userid);
+                }
                 localStorage.setItem("buttonpressing", 0)
             }
         }
@@ -104,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
                     break;
                 case "err":
-                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    renderDialog("Error", `${responseJson.errinfo}`);
                     break;
                 case "unknownerr":
                     renderDialog("Error", "An unknown error occurred");
@@ -152,13 +154,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 case "ok":
                     var usern = responseJson.user;
                     var borrowinf = responseJson.borrowinfo;
-                    renderChoiceDialog(usern, borrowinf, "Select an item to borrow", alert)
+                    var userid = responseJson.userid;
+                    renderChoiceDialog(usern, borrowinf, userid, "Select an item to borrow", reportBorrow)
                     break;
                 case "hasherr":
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
                     break;
                 case "err":
-                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    renderDialog("Error", `${responseJson.errinfo}`);
                     break;
                 case "unknownerr":
                     renderDialog("Error", "An unknown error occurred");
@@ -206,13 +209,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 case "ok":
                     var usern = responseJson.user;
                     var borrowinf = responseJson.borrowinfo;
-                    choicedialogiframe(usern, borrowinf, "Select an item to borrow", alert)
+                    var userid = responseJson.userid;
+                    choicedialogiframe(usern, borrowinf, userid, "Select an item to borrow", reportBorrow)
                     break;
                 case "hasherr":
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
                     break;
                 case "err":
-                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    renderDialog("Error", `${responseJson.errinfo}`);
                     break;
                 case "unknownerr":
                     renderDialog("Error", "An unknown error occurred");
@@ -264,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
                     break;
                 case "err":
-                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    renderDialog("Error", `${responseJson.errinfo}`);
                     break;
                 case "unknownerr":
                     renderDialog("Error", "An unknown error occurred");
@@ -323,7 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
                     break;
                 case "err":
-                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    renderDialog("Error", `${responseJson.errinfo}`);
                     break;
                 case "unknownerr":
                     renderDialog("Error", "An unknown error occurred");
@@ -377,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
                     break;
                 case "err":
-                    renderDialog("Error", `error: ${responseJson.errinfo}`);
+                    renderDialog("Error", `${responseJson.errinfo}`);
                     break;
                 case "unknownerr":
                     renderDialog("Error", "An unknown error occurred");
@@ -392,6 +396,56 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Error:', error);
             renderDialog("Error", "An error occurred while requesting for item check");
+            removeLoader()
+        }
+        removeLoader()
+    }
+
+    async function reportBorrow(itemType, userid) {
+        renderLoader()
+        try {
+            const response = await fetch("/updateitemstatus", {
+                method: 'POST',
+                body: JSON.stringify({
+                    "operation": "borrow",
+                    "itemtype": itemType,
+                    "userid": userid
+                }),
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const responseJson = await response.json();
+
+            switch (responseJson.status) {
+                case "transmiterr":
+                    renderDialog("Error", "An error occurred while trying to reach data server");
+                    break;
+                case "ok":
+                    renderDialog("Item Door Opened", `Storage to item door has been opened`);
+                    break;
+                case "hasherr":
+                    renderDialog("Error", "An error occurred while trying to authenticate with the server");
+                    break;
+                case "err":
+                    renderDialog("Error", `${responseJson.errinfo}`);
+                    break;
+                case "unknownerr":
+                    renderDialog("Error", "An unknown error occurred");
+                    break;
+                default:
+                    renderDialog("Error", "Unit webserver encountered an error");
+            }
+            removeLoader()
+        } catch (error) {
+            console.error('Error:', error);
+            renderDialog("Error", "An error occurred while requesting for requesting item borrowing");
             removeLoader()
         }
         removeLoader()

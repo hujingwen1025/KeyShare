@@ -12,9 +12,10 @@ app = Flask(__name__)
 
 socketio = SocketIO(app)
 
-pincheckurl = "https://example.org"
+serverurl = "http://127.0.0.1:7000/"
 unitsecretpath = "./unitsecret.txt"
 eotablepath = "./eo.xlsx"
+unitidpath = "./unitid.txt"
 debug = True
 
 def dprint(text):
@@ -80,16 +81,18 @@ def searchEO():
 
 def registerreturn(returnslot, itemid, disabled):
     sendjson = {
+        "operation": "registerreturn",
         "storageid": returnslot,
         "itemid": itemid,
-        "disabled": disabled
+        "disabled": disabled,
+        "unitid": unitid
     }
 
     verihash = generatehash(sendjson)
 
     sendjson["hash"] = verihash
 
-    response = post_json_request(pincheckurl, sendjson)
+    response = post_json_request(serverurl + 'updateitemstatus', sendjson)
 
     response_status = response["status"]
 
@@ -102,9 +105,10 @@ def openslot(storageid):
     pass
 
 def runMainApp():
-    socketio.run(app, port=5000)
+    socketio.run(app)
 
 unitsecret = read_file_to_string(unitsecretpath)
+unitid = read_file_to_string(unitidpath)
 
 eoworkbook = openpyxl.load_workbook(eotablepath)
 eosheet = eoworkbook.active
@@ -128,6 +132,8 @@ def auth():
         pin = request.json.get('pin')
 
         sendjson = {
+            "unitid": unitid,
+            "authmethod": "pin",
             "pin": pin
         }
 
@@ -137,7 +143,7 @@ def auth():
 
         sendjson["hash"] = verihash
 
-        response = post_json_request(pincheckurl, sendjson)
+        response = post_json_request(serverurl + 'auth', sendjson)
 
         if response == "error":
             retinfo = {
@@ -183,6 +189,7 @@ def auth():
         cardid = request.json.get('cardid')
 
         sendjson = {
+            "authmethod": "card",
             "cardid": cardid
         }
 
@@ -192,7 +199,7 @@ def auth():
 
         sendjson["hash"] = verihash
 
-        response = post_json_request(pincheckurl, sendjson)
+        response = post_json_request(serverurl + 'auth', sendjson)
 
         if response == "error":
             retinfo = {
@@ -245,7 +252,7 @@ def checkadminpin():
 
     sendjson["hash"] = verihash
 
-    response = post_json_request(pincheckurl, sendjson)
+    response = post_json_request(serverurl + 'checkadminpin', sendjson)
 
     if response == "error":
         retinfo = {
@@ -296,7 +303,7 @@ def cardregister():
 
         sendjson["hash"] = verihash
 
-        response = post_json_request(pincheckurl, sendjson)
+        response = post_json_request(serverurl + 'cardregister', sendjson)
 
         if response == "error":
             retinfo = {
@@ -345,7 +352,7 @@ def cardregister():
 
         sendjson["hash"] = verihash
 
-        response = post_json_request(pincheckurl, sendjson)
+        response = post_json_request(serverurl + 'cardregister', sendjson)
 
         if response == "error":
             retinfo = {
@@ -401,13 +408,15 @@ def updateitemstatus():
 
         sendjson["itemtype"] = itemtype
 
+        sendjson["unitid"] = unitid
+
         sendjson["userid"] = userid
 
         verihash = generatehash(sendjson)
 
         sendjson["hash"] = verihash
 
-        response = post_json_request(pincheckurl, sendjson)
+        response = post_json_request(serverurl + 'updateitemstatus', sendjson)
 
         if response == "error":
             retinfo = {
@@ -422,7 +431,7 @@ def updateitemstatus():
         if response_status == "ok":
 
             retinfo["status"] = "ok"
-            retinfo["storageid"] = response["storageid"]
+            openslot(response["storageid"])
 
         elif response_status == "hasherr":
 
@@ -451,7 +460,7 @@ def updateitemstatus():
 
         sendjson["hash"] = verihash
 
-        response = post_json_request(pincheckurl, sendjson)
+        response = post_json_request(serverurl + 'updateitemstatus', sendjson)
 
         if response == "error":
             retinfo = {
@@ -466,6 +475,8 @@ def updateitemstatus():
         if response_status == "ok":
 
             retinfo["status"] = "ok"
+            retinfo["userid"] = response["userid"]
+            retinfo["username"] = response["username"]
 
         elif response_status == "hasherr":
 
@@ -485,58 +496,20 @@ def updateitemstatus():
 
         return jsonify(retinfo)
     
-    elif operation == "return":
-        itemid = request.json.get('itemid')
-
-        sendjson["itemid"] = itemid
-
-        verihash = generatehash(sendjson)
-
-        sendjson["hash"] = verihash
-
-        response = post_json_request(pincheckurl, sendjson)
-
-        if response == "error":
-            retinfo = {
-                "status": "transmiterr"
-            }
-            dprint("Transmit error")
-            return jsonify(retinfo)
-        
-        response_status = response["status"]
+    elif operation == "return":      
         retinfo = {}
 
-        if response_status == "ok":
+        returnslot = searchEO()
 
-            retinfo["status"] = "ok"
-
-            returnslot = searchEO()
-
-            if returnslot == None:
-                retinfo["status"] = "full"
-            else:
-                returned = registerreturn(returnslot, itemid, "false")
-                if returned:
-                    openslot(returnslot)
-                else:
-                    retinfo["status"] = "notapproved"
-
-        elif response_status == "hasherr":
-
-            dprint("Hash error")
-            retinfo["status"] = "hasherr"
-
-        elif response_status == "err":
-
-            retinfo["status"] = "err"
-
-            errinfo = response["errinfo"]
-            retinfo["errinfo"] = errinfo
-
+        if returnslot == None:
+            retinfo["status"] = "full"
         else:
-
-            retinfo["status"] = "unknownerr"
-
+            returned = registerreturn(returnslot, itemid, "false")
+            if returned:
+                openslot(returnslot)
+            else:
+                retinfo["status"] = "notapproved"
+ 
         return jsonify(retinfo)
 
     elif operation == "report":
@@ -548,7 +521,7 @@ def updateitemstatus():
 
         sendjson["hash"] = verihash
 
-        response = post_json_request(pincheckurl, sendjson)
+        response = post_json_request(serverurl + 'updateitemstatus', sendjson)
 
         if response == "error":
             retinfo = {
@@ -612,7 +585,7 @@ def checkItem():
 
     sendjson["hash"] = verihash
 
-    response = post_json_request(pincheckurl, sendjson)
+    response = post_json_request(serverurl + 'checkitem', sendjson)
 
     if response == "error":
         retinfo = {
