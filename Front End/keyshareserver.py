@@ -75,13 +75,14 @@ def nfcInput():
 
 def searchEO():
     for i in range(eoindex):
-        if eocell(row = (i+1), column = 3) == 'e':
-            return eocell(row = (i+1), column=1)
+        cureovalue = eocell(row = (i+1), column = 2).value
+        if cureovalue == 'e':
+            return eocell(row = (i+1), column=1).value
     return None
 
 def registerreturn(returnslot, itemid, disabled):
     sendjson = {
-        "operation": "registerreturn",
+        "operation": "return",
         "storageid": returnslot,
         "itemid": itemid,
         "disabled": disabled,
@@ -95,6 +96,8 @@ def registerreturn(returnslot, itemid, disabled):
     response = post_json_request(serverurl + 'updateitemstatus', sendjson)
 
     response_status = response["status"]
+
+    print(response_status)
 
     if response_status == "ok":
         return True
@@ -113,7 +116,7 @@ unitid = read_file_to_string(unitidpath)
 eoworkbook = openpyxl.load_workbook(eotablepath)
 eosheet = eoworkbook.active
 eocell = eosheet.cell
-eoindex = eocell(row=1, column=1)
+eoindex = eocell(row=1, column=1).value
 
 @app.route('/')
 def keyshare():
@@ -401,6 +404,8 @@ def updateitemstatus():
         "operation": operation
     }
 
+    print(operation)
+
     if operation == "borrow":
         itemtype = request.json.get('itemtype')
 
@@ -499,6 +504,8 @@ def updateitemstatus():
     elif operation == "return":      
         retinfo = {}
 
+        itemid = request.json.get('itemid')
+
         returnslot = searchEO()
 
         if returnslot == None:
@@ -507,65 +514,30 @@ def updateitemstatus():
             returned = registerreturn(returnslot, itemid, "false")
             if returned:
                 openslot(returnslot)
+                retinfo["status"] = "ok"
             else:
                 retinfo["status"] = "notapproved"
  
         return jsonify(retinfo)
 
     elif operation == "report":
-        itemid = request.json.get('itemid')
-
-        sendjson["itemid"] = itemid
-
-        verihash = generatehash(sendjson)
-
-        sendjson["hash"] = verihash
-
-        response = post_json_request(serverurl + 'updateitemstatus', sendjson)
-
-        if response == "error":
-            retinfo = {
-                "status": "transmiterr"
-            }
-            dprint("Transmit error")
-            return jsonify(retinfo)
-        
-        response_status = response["status"]
         retinfo = {}
 
-        if response_status == "ok":
+        itemid = request.json.get('itemid')
 
-            retinfo["status"] = "ok"
+        returnslot = searchEO()
 
-            returnslot = searchEO()
-
-            if returnslot == None:
-                retinfo["status"] = "full"
-            else:
-                returned = registerreturn(returnslot, itemid, 'true')
-                if returned:
-                    openslot(returnslot)
-                else:
-                    retinfo["status"] = "notapproved"
-
-        elif response_status == "hasherr":
-
-            dprint("Hash error")
-            retinfo["status"] = "hasherr"
-
-        elif response_status == "err":
-
-            retinfo["status"] = "err"
-
-            errinfo = response["errinfo"]
-            retinfo["errinfo"] = errinfo
-
+        if returnslot == None:
+            retinfo["status"] = "full"
         else:
-
-            retinfo["status"] = "unknownerr"
-
+            returned = registerreturn(returnslot, itemid, "true")
+            if returned:
+                openslot(returnslot)
+                retinfo["status"] = "ok"
+            else:
+                retinfo["status"] = "notapproved"
+ 
         return jsonify(retinfo)
-
     else:
         retinfo = {}
 
@@ -575,17 +547,18 @@ def updateitemstatus():
     
 @app.route('/checkitem', methods=['POST'])
 def checkItem():
-    itemid = request.json.get('itemid')
+    itemnfc = request.json.get('itemnfc')
 
     sendjson = {
-        "itemid": itemid
+        "operation": 'returnverify',
+        "itemnfc": itemnfc
     }
 
     verihash = generatehash(sendjson)
 
     sendjson["hash"] = verihash
 
-    response = post_json_request(serverurl + 'checkitem', sendjson)
+    response = post_json_request(serverurl + 'updateitemstatus', sendjson)
 
     if response == "error":
         retinfo = {
@@ -600,6 +573,10 @@ def checkItem():
     if response_status == "ok":
 
         retinfo["status"] = "ok"
+        retinfo["userid"] = response["userid"]
+        retinfo["username"] = response["username"]
+        retinfo["itemid"] = response["itemid"]
+        retinfo["itemtype"] = response["itemtype"]
     
     elif response_status == "hasherr":
 

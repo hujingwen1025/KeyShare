@@ -29,15 +29,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderChoiceDialog(username, borrowInfo, userid, subtext, callfunction) {
+    function renderChoiceDialog(username, buttonInfo, userid, subtext, callfunction) {
         const interactslot = document.getElementById("interactslot");
-        const iframecode = `<iframe src="./borrowchoice?subtext=${subtext}&buttonjson=${borrowInfo}&username=${username}" id="choicedialogiframe"></iframe>`;
+        const iframecode = `<iframe src="./borrowchoice?subtext=${subtext}&buttonjson=${buttonInfo}&username=${username}" id="choicedialogiframe"></iframe>`;
         interactslot.insertAdjacentHTML("afterbegin", iframecode);
         const choicedialogiframe = document.getElementById('choicedialogiframe');
         window.onmessage = function(event) {
             if (event.data.startsWith("doneselect")) {
                 choicedialogiframe.remove();
                 if (event.data.replace('doneselect', '') != 'close') {
+                    console.log(event.data.replace('doneselect', ''))
                     callfunction(event.data.replace('doneselect', ''), userid);
                 }
                 localStorage.setItem("buttonpressing", 0)
@@ -347,8 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
         removeLoader()
     }
 
-    async function checkItem(itemid) {
-        if (itemid == "") {
+    async function checkItem(itemnfc) {
+        if (itemnfc == "") {
             return 0
         }
         renderLoader()
@@ -356,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch("/checkitem", {
                 method: 'POST',
                 body: JSON.stringify({
-                    "itemid": itemid
+                    "itemnfc": itemnfc
                 }),
                 headers: {
                     Accept: 'application/json',
@@ -375,7 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderDialog("Error", "An error occurred while trying to reach data server");
                     break;
                 case "ok":
-                    renderDialog("OK", "Item valid");
+                    localStorage.setItem("returnitemid", responseJson.itemid)
+                    renderChoiceDialog(responseJson.username, "{'return': 'Return,return,1', 'report': 'Report,report,1'}", responseJson.userid, responseJson.itemtype.toUpperCase() + '-' + responseJson.itemid, reportReturn)
                     break;
                 case "hasherr":
                     renderDialog("Error", "An error occurred while trying to authenticate with the server");
@@ -446,6 +448,72 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Error:', error);
             renderDialog("Error", "An error occurred while requesting for requesting item borrowing");
+            removeLoader()
+        }
+        removeLoader()
+    }
+
+    async function reportReturn(action) {
+        if (action == "") {
+            return 0
+        }
+        renderLoader()
+        returnitemid = localStorage.getItem("returnitemid")
+        console.log(returnitemid)
+        try {
+            const response = await fetch("/updateitemstatus", {
+                method: 'POST',
+                body: JSON.stringify({
+                    "operation": action,
+                    "itemid": returnitemid
+                }),
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const responseJson = await response.json();
+
+            console.log(responseJson.status)
+
+            switch (responseJson.status) {
+                case "transmiterr":
+                    renderDialog("Error", "An error occurred while trying to reach data server");
+                    break;
+                case "ok":
+                    if (action == 'return') {
+                        renderDialog("Return Door Opened", `Please put item inside of compartment`);
+                    } else {
+                        renderDialog("Return Door Opened", `Please put item inside of compartment, please visit https://tinyurl.com/keysharerp to report`)
+                    }
+                    break;
+                case "hasherr":
+                    renderDialog("Error", "An error occurred while trying to authenticate with the server");
+                    break;
+                case "err":
+                    renderDialog("Error", `${responseJson.errinfo}`);
+                    break;
+                case "unknownerr":
+                    renderDialog("Error", "An unknown error occurred");
+                    break;
+                case "notapproved":
+                    renderDialog("Error", "Return was not approved");
+                    break;
+                case "full":
+                    renderDialog("Error", "Unit does not have available slot for returning item")
+                    break;
+                default:
+                    renderDialog("Error", "Unit webserver encountered an error");
+            }
+            removeLoader()
+        } catch (error) {
+            console.error('Error:', error);
+            renderDialog("Error", "An error occurred while requesting for item return");
             removeLoader()
         }
         removeLoader()

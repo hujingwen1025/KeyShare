@@ -14,6 +14,7 @@ keysharedb = mysql.connector.connect(
     host="localhost",
     user="user",
     password="10252009",
+    autocommit = True,
     database="KeyShare"
 )
 
@@ -109,6 +110,8 @@ def updateitemstatus():
 
     retinfo = {}
 
+    dprint(operation)
+
     if operation == "borrow":
         userid = request.json.get('userid')
         userid = str(int(userid))
@@ -117,7 +120,7 @@ def updateitemstatus():
         itemtype = request.json.get('itemtype')
         itemtype = str(itemtype)
 
-        dbcursor.execute("SELECT itemid FROM items WHERE borrowed = FALSE AND disabled = FALSE AND itemtype = '" + itemtype + "' AND unitid = " + unitid)
+        dbcursor.execute(f"SELECT itemid FROM items WHERE borrowed = FALSE AND disabled = FALSE AND itemtype = '{itemtype}' AND unitid = '{unitid}'")
 
         allitemid = dbcursor.fetchall()
 
@@ -129,15 +132,11 @@ def updateitemstatus():
         selecteditemid = allitemid[0][0]
         selecteditemid = str(selecteditemid)
 
-        dbcursor.execute("SELECT storageid FROM items WHERE itemid = " + selecteditemid)
+        dbcursor.execute(f"SELECT storageid FROM items WHERE itemid = {selecteditemid}")
 
-        selectedstorageid = str(dbcursor.fetchall())
+        selectedstorageid = str(dbcursor.fetchall()[0][0])
 
-        dprint("UPDATE items SET borrowed = TRUE, storageid = NULL, unitid = NULL, borrowedtime = CURRENT_TIMESTAMP, borroweduser = '" + userid + "' WHERE itemid = " + selecteditemid)
-
-        dbcursor.execute("UPDATE items SET borrowed = TRUE, storageid = NULL, unitid = NULL, borrowedtime = CURRENT_TIMESTAMP, borroweduser = '" + userid + "' WHERE itemid = " + selecteditemid)
-
-        keysharedb.commit()
+        dbcursor.execute(f"UPDATE items SET borrowed = TRUE, storageid = NULL, unitid = NULL, borrowedtime = CURRENT_TIMESTAMP, borroweduser = '{userid}' WHERE itemid = {selecteditemid}")
 
         retinfo['status'] = 'ok'
         retinfo['storageid'] = selectedstorageid
@@ -145,38 +144,50 @@ def updateitemstatus():
         return jsonify(retinfo)
 
     elif operation == "returnverify":
-        itemid = request.json.get("itemid")
-        itemid = str(int(itemid))
+        itemnfc = request.json.get("itemnfc")
+        itemnfc = str(itemnfc)
 
-        dbcursor.execute("SELECT borroweduser FROM items WHERE borrowed = TRUE, itemid = " + itemid)
+        dbcursor.execute(f"SELECT borroweduser, itemid, itemtype FROM items WHERE borrowed = TRUE AND itemnfc = '{itemnfc}'")
 
-        if len(dbcursor.fetchall()) < 1:
+        selectediteminfo = dbcursor.fetchall()
+
+        if len(selectediteminfo) < 1:
             retinfo["status"] = 'err'
             retinfo["errinfo"] = "Item or user not registered in borrowed list"
 
             return jsonify(retinfo)
+        
+        borroweduserid = selectediteminfo[0][0]
+        borroweduserid = str(borroweduserid)
 
-        borroweduserid = dbcursor.fetchall()[0][0]
-        borroweduserid = str(int(borroweduserid))
+        borroweditemid = selectediteminfo[0][1]
+        borroweditemid = str(borroweditemid)
 
-        dbcursor.execute("SELECT username FROM users WHERE userid = " + borroweduserid)
+        borroweditemtype = selectediteminfo[0][2]
+        borroweditemtype = str(borroweditemtype)
 
-        if len(dbcursor.fetchall()) < 1:
+        dbcursor.execute(f"SELECT username FROM users WHERE userid = {borroweduserid}")
+
+        selectedusername = dbcursor.fetchall()
+
+        if len(selectedusername) < 1:
             retinfo["status"] = 'err'
             retinfo["errinfo"] = "Item was found in database but user is invalid"
 
             return jsonify(retinfo)
 
-        borrowedusername = dbcursor.fetchall()[0][0]
+        borrowedusername = selectedusername[0][0]
         borrowedusername = str(borrowedusername)
 
         retinfo["status"] = "ok"
         retinfo["userid"] = borroweduserid
         retinfo["username"] = borrowedusername
+        retinfo["itemid"] = borroweditemid
+        retinfo["itemtype"] = borroweditemtype
 
         return jsonify(retinfo)
 
-    elif operation == "registerreturn":
+    elif operation == "return":
         storageid = request.json.get('storageid')
         itemid = request.json.get('itemid')
         disabled = request.json.get('disabled')
@@ -186,9 +197,18 @@ def updateitemstatus():
         storageid = str(storageid)
         itemid = str(int(itemid))
 
-        # Continue edit
+        if disabled == 'true':
+            disabled = 'TRUE'
+        else:
+            disabled = 'FALSE'
 
-        dbcursor.execute("UPDATE items SET borroweduser = NULL, borrowedtime = NULL, borrowed = FALSE, unitid = 1, storageid = 'A1' WHERE itemid = 1")
+        retinfo = {}
+
+        dbcursor.execute(f"UPDATE items SET borroweduser = NULL, borrowedtime = NULL, borrowed = FALSE, unitid = '{unitid}', storageid = '{storageid}', disabled = {disabled} WHERE itemid = {itemid}")
+        
+        retinfo["status"] = "ok"
+
+        return jsonify(retinfo)
 
 if __name__ == '__main__':
     app.run(host='localhost', port=7000)
